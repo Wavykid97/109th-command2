@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>109th Command Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      background-color: #0d1117;
+      color: #00ff88;
+      font-family: monospace;
+      text-align: center;
+    }
+
+    .container {
+      margin-top: 100px;
+    }
+
+    input {
+      padding: 10px;
+      margin: 5px;
+      background: #161b22;
+      border: 1px solid #00ff88;
+      color: #00ff88;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      background: #00ff88;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    #dashboard {
+      display: none;
+    }
+
+    .panel {
+      border: 1px solid #00ff88;
+      padding: 20px;
+      margin: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="auth">
+  <h1>109th Military Command Login</h1>
+
+  <input type="email" id="email" placeholder="Officer Email"><br>
+  <input type="password" id="password" placeholder="Password"><br>
+
+  <button onclick="register()">Register</button>
+  <button onclick="login()">Login</button>
+
+  <p id="authMessage"></p>
+</div>
+
+<div id="dashboard">
+  <h1>109th Command Dashboard</h1>
+  <p id="welcome"></p>
+
+  <div class="panel">
+    <h2>DDR Calculator</h2>
+    <p>DDR is based on Member States.</p>
+    <input type="number" id="memberStates" placeholder="Enter Member States">
+    <button onclick="calculateDDR()">Calculate DDR</button>
+    <p id="ddrResult"></p>
+  </div>
+
+  <button onclick="logout()">Logout</button>
+</div>
+
+<script>
+  // 🔥 PUT YOUR REAL VALUES HERE
+  const SUPABASE_URL = "https://qyogptduwrzgywgfnfpc.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5b2dwdGR1d3J6Z3l3Z2ZuZnBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MzM5NjcsImV4cCI6MjA4NzUwOTk2N30.T6_V1LmAtOD9LejPTZH1i_yW8a-eKnTEl5BpufNB9nc";
+
+  const supabaseClient = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
+
+  async function register() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const { error } = await supabaseClient.auth.signUp({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      document.getElementById("authMessage").innerText = error.message;
+    } else {
+      document.getElementById("authMessage").innerText =
+        "Registered successfully. Now login.";
+    }
+  }
+
+  async function login() {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password
+    });
+
+    if (error) {
+      document.getElementById("authMessage").innerText = error.message;
+    } else {
+      showDashboard(data.user);
+    }
+  }
+
+  async function logout() {
+    await supabaseClient.auth.signOut();
+    document.getElementById("dashboard").style.display = "none";
+    document.getElementById("auth").style.display = "block";
+  }
+
+  function showDashboard(user) {
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+    document.getElementById("welcome").innerText =
+      "Logged in as: " + user.email;
+  }
+
+  function calculateDDR() {
+    const states = parseInt(
+      document.getElementById("memberStates").value
+    );
+
+    if (isNaN(states)) {
+      document.getElementById("ddrResult").innerText =
+        "Enter valid number.";
+      return;
+    }
+
+    // 🔥 Example DDR Formula (change this to your real one)
+    const ddr = states * 10;
+
+    document.getElementById("ddrResult").innerText =
+      "DDR Result: " + ddr;
+  }
+
+  // 🔥 Keep user logged in on refresh
+  supabaseClient.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      showDashboard(data.session.user);
+    }
+  });
+</script>
+
+</body>
+</html>
