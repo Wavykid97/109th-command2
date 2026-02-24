@@ -1,70 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>109th Command Dashboard</title>
+  <title>109th Command System</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     body {
-      background-color: #0d1117;
+      background: #0a0f14;
       color: #00ff88;
       font-family: monospace;
       text-align: center;
     }
-
-    .container {
-      margin-top: 100px;
-    }
-
-    input {
+    input, button {
       padding: 10px;
       margin: 5px;
-      background: #161b22;
-      border: 1px solid #00ff88;
+      background: #111;
       color: #00ff88;
+      border: 1px solid #00ff88;
     }
-
     button {
-      padding: 10px 20px;
-      margin: 5px;
-      background: #00ff88;
-      border: none;
       cursor: pointer;
       font-weight: bold;
     }
-
-    #dashboard {
-      display: none;
-    }
-
     .panel {
       border: 1px solid #00ff88;
       padding: 20px;
       margin: 20px;
     }
+    #dashboard { display: none; }
   </style>
 </head>
 <body>
 
-<div class="container" id="auth">
+<div id="auth">
   <h1>109th Military Command Login</h1>
-
   <input type="email" id="email" placeholder="Officer Email"><br>
   <input type="password" id="password" placeholder="Password"><br>
-
   <button onclick="register()">Register</button>
   <button onclick="login()">Login</button>
-
   <p id="authMessage"></p>
 </div>
 
 <div id="dashboard">
-  <h1>109th Command Dashboard</h1>
+  <h1>Command Dashboard</h1>
   <p id="welcome"></p>
 
   <div class="panel">
-    <h2>DDR Calculator</h2>
-    <p>DDR is based on Member States.</p>
-    <input type="number" id="memberStates" placeholder="Enter Member States">
+    <h2>Member State Control</h2>
+    <input id="stateName" placeholder="State Name">
+    <input id="personnel" type="number" placeholder="Active Personnel">
+    <button onclick="updateState()">Save / Update</button>
+    <div id="statesList"></div>
+  </div>
+
+  <div class="panel">
+    <h2>DDR Calculation</h2>
     <button onclick="calculateDDR()">Calculate DDR</button>
     <p id="ddrResult"></p>
   </div>
@@ -73,85 +62,111 @@
 </div>
 
 <script>
-  // 🔥 PUT YOUR REAL VALUES HERE
-  const SUPABASE_URL = "https://qyogptduwrzgywgfnfpc.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5b2dwdGR1d3J6Z3l3Z2ZuZnBjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MzM5NjcsImV4cCI6MjA4NzUwOTk2N30.T6_V1LmAtOD9LejPTZH1i_yW8a-eKnTEl5BpufNB9nc";
+const SUPABASE_URL = "https://zmnolzsssbzexpzvsjva.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptbm9senNzc2J6ZXhwenZzanZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTQ5NzgsImV4cCI6MjA4NzUzMDk3OH0.TrwfKUzzzDfQ5CZn1VzAyktyddYyfNlrTli_UbRqFu4";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const supabaseClient = window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+async function register() {
+  const email = emailInput();
+  const password = passwordInput();
 
-  async function register() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
+  const { data, error } = await supabase.auth.signUp({ email, password });
 
-    const { error } = await supabaseClient.auth.signUp({
-      email: email,
-      password: password
-    });
+  if (error) return message(error.message);
 
-    if (error) {
-      document.getElementById("authMessage").innerText = error.message;
-    } else {
-      document.getElementById("authMessage").innerText =
-        "Registered successfully. Now login.";
-    }
-  }
-
-  async function login() {
-    const email = document.getElementById("email").value;
-    const password = document.getElementById("password").value;
-
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-      email: email,
-      password: password
-    });
-
-    if (error) {
-      document.getElementById("authMessage").innerText = error.message;
-    } else {
-      showDashboard(data.user);
-    }
-  }
-
-  async function logout() {
-    await supabaseClient.auth.signOut();
-    document.getElementById("dashboard").style.display = "none";
-    document.getElementById("auth").style.display = "block";
-  }
-
-  function showDashboard(user) {
-    document.getElementById("auth").style.display = "none";
-    document.getElementById("dashboard").style.display = "block";
-    document.getElementById("welcome").innerText =
-      "Logged in as: " + user.email;
-  }
-
-  function calculateDDR() {
-    const states = parseInt(
-      document.getElementById("memberStates").value
-    );
-
-    if (isNaN(states)) {
-      document.getElementById("ddrResult").innerText =
-        "Enter valid number.";
-      return;
-    }
-
-    // 🔥 Example DDR Formula (change this to your real one)
-    const ddr = states * 10;
-
-    document.getElementById("ddrResult").innerText =
-      "DDR Result: " + ddr;
-  }
-
-  // 🔥 Keep user logged in on refresh
-  supabaseClient.auth.getSession().then(({ data }) => {
-    if (data.session) {
-      showDashboard(data.session.user);
-    }
+  await supabase.from("officers").insert({
+    id: data.user.id
   });
+
+  message("Registered. Awaiting High Command Approval.");
+}
+
+async function login() {
+  const email = emailInput();
+  const password = passwordInput();
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) return message(error.message);
+
+  const { data: officer } = await supabase
+    .from("officers")
+    .select("*")
+    .eq("id", data.user.id)
+    .single();
+
+  if (!officer || !officer.approved) {
+    await supabase.auth.signOut();
+    return message("Access Denied. Awaiting Approval.");
+  }
+
+  showDashboard(data.user);
+}
+
+function emailInput() {
+  return document.getElementById("email").value;
+}
+
+function passwordInput() {
+  return document.getElementById("password").value;
+}
+
+function message(msg) {
+  document.getElementById("authMessage").innerText = msg;
+}
+
+function showDashboard(user) {
+  document.getElementById("auth").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+  document.getElementById("welcome").innerText = "Logged in as: " + user.email;
+  loadStates();
+}
+
+async function logout() {
+  await supabase.auth.signOut();
+  location.reload();
+}
+
+async function updateState() {
+  const name = document.getElementById("stateName").value;
+  const personnel = parseInt(document.getElementById("personnel").value);
+
+  if (!name || isNaN(personnel)) return alert("Fill all fields");
+
+  await supabase.from("member_states").upsert({
+    state_name: name,
+    active_personnel: personnel
+  });
+
+  loadStates();
+}
+
+async function loadStates() {
+  const { data } = await supabase.from("member_states").select("*");
+
+  const container = document.getElementById("statesList");
+  container.innerHTML = "";
+
+  data.forEach(state => {
+    container.innerHTML += `
+      <div>
+        ${state.state_name} — Personnel: ${state.active_personnel}
+      </div>
+    `;
+  });
+}
+
+async function calculateDDR() {
+  const { data } = await supabase.from("member_states").select("active_personnel");
+
+  const total = data.reduce((sum, state) => sum + state.active_personnel, 0);
+
+  document.getElementById("ddrResult").innerText = "Total DDR: " + total;
+}
+
+supabase.auth.getSession().then(({ data }) => {
+  if (data.session) showDashboard(data.session.user);
+});
 </script>
 
 </body>
