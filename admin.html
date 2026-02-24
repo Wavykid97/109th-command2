@@ -6,43 +6,42 @@
 <body style="background:black;color:#00ff88;font-family:monospace;text-align:center;">
 
 <h1>High Command Approval Panel</h1>
-<div id="pendingList"></div>
+<div id="pendingList">Loading...</div>
 
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const SUPABASE_URL = "https://zmnolzsssbzexpzvsjva.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptbm9senNzc2J6ZXhwenZzanZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTQ5NzgsImV4cCI6MjA4NzUzMDk3OH0.TrwfKUzzzDfQ5CZn1VzAyktyddYyfNlrTli_UbRqFu4";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptbm9senNzc2J6ZXhwenZzanZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTQ5NzgsImV4cCI6MjA4NzUzMDk3OH0.TrwfKUzzzDfQ5CZn1VzAyktyddYyfNlrTli_UbRqFu4"; // keep anon key only
 
 const client = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 const container = document.getElementById("pendingList");
 
 async function init() {
-  const { data: sessionData } = await client.auth.getSession();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
 
-  if (!sessionData.session) {
+  if (sessionError || !sessionData.session) {
     container.innerHTML = "Not logged in.";
     return;
   }
 
   const userId = sessionData.session.user.id;
 
-  // Check if current user exists in officers
-  const { data: officer } = await client
+  // Get officer record
+  const { data: officer, error } = await client
     .from("officers")
     .select("*")
     .eq("id", userId)
     .single();
 
-  if (!officer) {
+  if (error || !officer) {
     container.innerHTML = "Officer record not found.";
     return;
   }
 
-  // Only allow approved officers to view admin panel
-  if (!officer.approved) {
-    container.innerHTML = "Access denied.";
+  // 🔥 REQUIRE ADMIN ROLE
+  if (officer.role !== "High Command") {
+    container.innerHTML = "Access denied. High Command only.";
     return;
   }
 
@@ -50,10 +49,15 @@ async function init() {
 }
 
 async function loadPending() {
-  const { data } = await client
+  const { data, error } = await client
     .from("officers")
     .select("*")
     .eq("approved", false);
+
+  if (error) {
+    container.innerHTML = "Error loading pending officers.";
+    return;
+  }
 
   container.innerHTML = "";
 
@@ -64,22 +68,30 @@ async function loadPending() {
 
   data.forEach(officer => {
     const div = document.createElement("div");
-    div.innerHTML = `
-      ${officer.id}
-      <button onclick="approve('${officer.id}')">Approve</button>
-    `;
+    div.style.margin = "10px";
+
+    const approveBtn = document.createElement("button");
+    approveBtn.textContent = "Approve";
+    approveBtn.style.marginLeft = "10px";
+    approveBtn.onclick = () => approve(officer.id);
+
+    div.textContent = officer.id;
+    div.appendChild(approveBtn);
+
     container.appendChild(div);
   });
 }
 
-window.approve = async function (id) {
-  await client
+async function approve(id) {
+  const { error } = await client
     .from("officers")
     .update({ approved: true })
     .eq("id", id);
 
-  loadPending();
-};
+  if (!error) {
+    loadPending();
+  }
+}
 
 init();
 </script>
