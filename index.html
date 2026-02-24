@@ -61,65 +61,15 @@
   <button onclick="logout()">Logout</button>
 </div>
 
-<script>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const SUPABASE_URL = "https://zmnolzsssbzexpzvsjva.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptbm9senNzc2J6ZXhwenZzanZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTQ5NzgsImV4cCI6MjA4NzUzMDk3OH0.TrwfKUzzzDfQ5CZn1VzAyktyddYyfNlrTli_UbRqFu4";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-async function register() {
-  const email = emailInput();
-  const password = passwordInput();
+const client = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password
-  });
-
-  if (error) {
-    message("Auth Error: " + error.message);
-    return;
-  }
-
-  if (!data.user) {
-    message("User creation failed.");
-    return;
-  }
-
-  const { error: insertError } = await supabase
-    .from("officers")
-    .insert({
-      id: data.user.id
-    });
-
-  if (insertError) {
-    message("DB Insert Error: " + insertError.message);
-    return;
-  }
-
-  message("Registered. Awaiting High Command Approval.");
-}
-
-async function login() {
-  const email = emailInput();
-  const password = passwordInput();
-
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) return message(error.message);
-
-  const { data: officer } = await supabase
-    .from("officers")
-    .select("*")
-    .eq("id", data.user.id)
-    .single();
-
-  if (!officer || !officer.approved) {
-    await supabase.auth.signOut();
-    return message("Access Denied. Awaiting Approval.");
-  }
-
-  showDashboard(data.user);
-}
+/* ------------------- HELPERS ------------------- */
 
 function emailInput() {
   return document.getElementById("email").value;
@@ -136,31 +86,128 @@ function message(msg) {
 function showDashboard(user) {
   document.getElementById("auth").style.display = "none";
   document.getElementById("dashboard").style.display = "block";
-  document.getElementById("welcome").innerText = "Logged in as: " + user.email;
+  document.getElementById("welcome").innerText =
+    "Logged in as: " + user.email;
   loadStates();
 }
 
-async function logout() {
-  await supabase.auth.signOut();
-  location.reload();
-}
+/* ------------------- REGISTER ------------------- */
 
-async function updateState() {
-  const name = document.getElementById("stateName").value;
-  const personnel = parseInt(document.getElementById("personnel").value);
+window.register = async function () {
+  const email = emailInput();
+  const password = passwordInput();
 
-  if (!name || isNaN(personnel)) return alert("Fill all fields");
+  if (!email || !password) {
+    message("Fill in all fields.");
+    return;
+  }
 
-  await supabase.from("member_states").upsert({
-    state_name: name,
-    active_personnel: personnel
+  const { data, error } = await client.auth.signUp({
+    email,
+    password
   });
 
+  if (error) {
+    message("Auth Error: " + error.message);
+    return;
+  }
+
+  if (!data.user) {
+    message("User creation failed.");
+    return;
+  }
+
+  const { error: insertError } = await client
+    .from("officers")
+    .insert({ id: data.user.id });
+
+  if (insertError) {
+    message("DB Error: " + insertError.message);
+    return;
+  }
+
+  message("Registered. Awaiting High Command Approval.");
+};
+
+/* ------------------- LOGIN ------------------- */
+
+window.login = async function () {
+  const email = emailInput();
+  const password = passwordInput();
+
+  const { data, error } = await client.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    message("Login Error: " + error.message);
+    return;
+  }
+
+  const { data: officer, error: officerError } = await client
+    .from("officers")
+    .select("*")
+    .eq("id", data.user.id)
+    .single();
+
+  if (officerError || !officer) {
+    message("Officer record not found.");
+    return;
+  }
+
+  if (!officer.approved) {
+    await client.auth.signOut();
+    message("Access Denied. Awaiting Approval.");
+    return;
+  }
+
+  showDashboard(data.user);
+};
+
+/* ------------------- LOGOUT ------------------- */
+
+window.logout = async function () {
+  await client.auth.signOut();
+  location.reload();
+};
+
+/* ------------------- MEMBER STATE UPDATE ------------------- */
+
+window.updateState = async function () {
+  const name = document.getElementById("stateName").value;
+  const personnel = parseInt(
+    document.getElementById("personnel").value
+  );
+
+  if (!name || isNaN(personnel)) {
+    alert("Fill all fields correctly.");
+    return;
+  }
+
+  const { error } = await client
+    .from("member_states")
+    .upsert({
+      state_name: name,
+      active_personnel: personnel
+    });
+
+  if (error) {
+    alert("Update Error: " + error.message);
+    return;
+  }
+
   loadStates();
-}
+};
+
+/* ------------------- LOAD STATES ------------------- */
 
 async function loadStates() {
-  const { data } = await supabase.from("member_states").select("*");
+  const { data, error } = await client
+    .from("member_states")
+    .select("*");
+
+  if (error) return;
 
   const container = document.getElementById("statesList");
   container.innerHTML = "";
@@ -174,16 +221,34 @@ async function loadStates() {
   });
 }
 
-async function calculateDDR() {
-  const { data } = await supabase.from("member_states").select("active_personnel");
+/* ------------------- DDR CALCULATION ------------------- */
 
-  const total = data.reduce((sum, state) => sum + state.active_personnel, 0);
+window.calculateDDR = async function () {
+  const { data, error } = await client
+    .from("member_states")
+    .select("active_personnel");
 
-  document.getElementById("ddrResult").innerText = "Total DDR: " + total;
-}
+  if (error) {
+    document.getElementById("ddrResult").innerText =
+      "Error calculating DDR.";
+    return;
+  }
 
-supabase.auth.getSession().then(({ data }) => {
-  if (data.session) showDashboard(data.session.user);
+  const total = data.reduce(
+    (sum, state) => sum + state.active_personnel,
+    0
+  );
+
+  document.getElementById("ddrResult").innerText =
+    "Total DDR: " + total;
+};
+
+/* ------------------- AUTO SESSION CHECK ------------------- */
+
+client.auth.getSession().then(({ data }) => {
+  if (data.session) {
+    showDashboard(data.session.user);
+  }
 });
 </script>
 
