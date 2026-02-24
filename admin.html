@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>High Command Panel</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="background:black;color:#00ff88;font-family:monospace;text-align:center;">
+
+<h1>High Command Approval Panel</h1>
+<div id="pendingList"></div>
+
+<script>
+const SUPABASE_URL = "https://zmnolzsssbzexpzvsjva.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inptbm9senNzc2J6ZXhwenZzanZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NTQ5NzgsImV4cCI6MjA4NzUzMDk3OH0.TrwfKUzzzDfQ5CZn1VzAyktyddYyfNlrTli_UbRqFu4";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function loadPending() {
+  const { data } = await supabase
+    .from("officers")
+    .select("*")
+    .eq("approved", false);
+
+  const container = document.getElementById("pendingList");
+  container.innerHTML = "";
+
+  data.forEach(officer => {
+    container.innerHTML += `
+      <div>
+        ${officer.id}
+        <button onclick="approve('${officer.id}')">Approve</button>
+      </div>
+    `;
+  });
+}
+
+async function approve(id) {
+  await supabase
+    .from("officers")
+    .update({ approved: true, role: 'Officer' })
+    .eq("id", id);
+
+  loadPending();
+}
+
+loadPending();
+</script>
+
+</body>
+</html>
