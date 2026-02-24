@@ -117,9 +117,6 @@ window.register = async function () {
     return;
   }
 
-  const { error: insertError } = await client
-    .from("officers")
-    .insert({ id: data.user.id });
 
   if (insertError) {
     message("DB Error: " + insertError.message);
