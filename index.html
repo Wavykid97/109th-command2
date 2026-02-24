@@ -70,13 +70,31 @@ async function register() {
   const email = emailInput();
   const password = passwordInput();
 
-  const { data, error } = await supabase.auth.signUp({ email, password });
-
-  if (error) return message(error.message);
-
-  await supabase.from("officers").insert({
-    id: data.user.id
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password
   });
+
+  if (error) {
+    message("Auth Error: " + error.message);
+    return;
+  }
+
+  if (!data.user) {
+    message("User creation failed.");
+    return;
+  }
+
+  const { error: insertError } = await supabase
+    .from("officers")
+    .insert({
+      id: data.user.id
+    });
+
+  if (insertError) {
+    message("DB Insert Error: " + insertError.message);
+    return;
+  }
 
   message("Registered. Awaiting High Command Approval.");
 }
